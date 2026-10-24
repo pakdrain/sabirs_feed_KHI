@@ -1,0 +1,13 @@
+[33mcommit 38d594e9c19b7a477bfe542d39d88b6cc9be0a13[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmaster[m[33m, [m[1;31morigin/master[m[33m)[m
+Author: Pak Drain <pakdrain@gmail.com>
+Date:   Sat Oct 24 12:17:09 2026 +0500
+
+    updated .env
+
+ .env                            |    4 [32m+[m
+ client/src/pages/sales-form.tsx |    4 [32m+[m[31m-[m
+ server/db-sync.ts               | 1153 [32m++++++++++++++++[m[31m-----------------------[m
+ server/db.ts                    |   34 [32m+[m[31m-[m
+ server/index.ts                 |   62 [32m++[m[31m-[m
+ server/routes.ts                |  678 [32m+++++++++[m[31m--------------[m
+ 6 files changed, 810 insertions(+), 1125 deletions(-)

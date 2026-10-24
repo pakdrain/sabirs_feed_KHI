@@ -1,0 +1,48 @@
+Table: wb_weighbridge_items_purchase (in my local database table name)web_id(foreign key)
+web_item_p_id (maximum of the wb_weighbridge_items_purchase  use as slip_no )
+
+
+column name in your frontend UI
+
+
+
+Bardana Type
+IGP No
+Vehicle No
+Wt Per Bag
+IGP Date
+Supp's Weight
+Quality Deduction
+No Of Bags
+Vendor
+Bag Condition
+Po No
+Item Code
+Item Description	
+Po Qty	
+IGP Qty	
+Balance Qty	
+Vendor
+
+
+column names in table in my localdatapostgre database
+
+bardana_type  VARCHAR(2000),
+igp_no   VARCHAR(200),
+vehicle_no   VARCHAR(200),
+weight_per_bags  NUMERIC(20,6),
+igp_date    TIMESTAMP,
+supplier_weight NUMERIC(20,6),
+quality_deduction   NUMERIC(20,6),
+no_of_bags   NUMERIC(20,6),
+vendor_name    VARCHAR(2000),            
+bag_condition  VARCHAR(2000),
+po_no    VARCHAR(200),
+item_code VARCHAR(200),
+item_desc   VARCHAR(2000),
+po_qty    NUMERIC(20,6),
+igp_qty   NUMERIC(20,6),
+balance_qty    NUMERIC(20,6),   
+vendor_name VARCHAR(2000), 
+
+  

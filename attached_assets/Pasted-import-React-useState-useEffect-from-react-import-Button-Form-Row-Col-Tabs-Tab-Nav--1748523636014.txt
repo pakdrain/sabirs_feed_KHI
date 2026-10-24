@@ -1,0 +1,490 @@
+import React, { useState, useEffect } from 'react';
+import { Button, Form, Row, Col,Tabs, Tab, Nav } from 'react-bootstrap';
+import axios from 'axios';
+
+const Purchaseonline = () => {
+  const initialFormData = {
+  slipNo: '',
+  slipInTime: '',
+  firstWeight: '',
+  secondWeight: '',
+  netWeight: '',
+  bardanaWeight: '',
+  grossWeight: '',
+  freight: '',
+  remarks: '',
+  po_no:'',
+  driverName: '',
+  vendor: '',         // <-- vendor added here
+  companyId: '',
+  branchId: '',
+  onlineEntry: 'Yes',   // default to online active
+  offlineEntry: '',
+  createdBy: '',
+  creationDate: '',
+  lastUpdatedBy: '',
+  lastUpdatedDate: '',
+  manualDcNo: '',
+  entryType: 'PURCHASE',
+  slipOutTime: '',
+  status: '',
+  slipDate: '',
+};
+
+  const [formData, setFormData] = useState(initialFormData);
+  const [loading, setLoading] = useState(false);
+  const [onlineMode, setOnlineMode] = useState(true);  
+ const [igpItems, setIgpItems] = useState([]);  // state for table data
+
+const fetchIgpData = async () => {
+  if (!formData.igpNo) {
+    alert('Please enter IGP No');
+    return;
+  }
+  try {
+    const response = await axios.get(
+      `http://portal.sabirsgroup.com:8184/ords/sabroso_ords/webridge_igp/live_data`,
+      { params: { igp_no: formData.igpNo } }
+    );
+
+    if (response.data && response.data.items && response.data.items.length > 0) {
+      const data = response.data.items;
+
+      // Pehle item se kuch form fields update karlo (jaise driverName, vendor, etc)
+      const firstItem = data[0];
+      setFormData(prev => ({
+        ...prev,
+        driverName: firstItem.driver_name || '',
+        vendor: firstItem.vendor_name || '',
+        vehicleNo: firstItem.vehicle_no || '',
+        bardanaWeight: firstItem.bardana_qty ? String(firstItem.bardana_qty) : '',
+      }));
+
+      // Poora array igpItems mein set karo for table
+      setIgpItems(data);
+    } else {
+      alert('No data found for this IGP No.');
+      setIgpItems([]);  // clear table data if no result
+    }
+  } catch (error) {
+    console.error('Error fetching IGP data:', error);
+    alert('Failed to fetch IGP data');
+    setIgpItems([]);  // clear on error
+  }
+};
+
+
+  // Format ISO datetime string to "YYYY-MM-DDTHH:mm" for input[type=datetime-local]
+  const formatDatetimeLocal = (isoString) => {
+    if (!isoString) return '';
+    return isoString.slice(0, 16);
+  };
+
+  // Format back to ISO for sending to backend
+  const formatISODate = (localString) => {
+    if (!localString) return null;
+    return new Date(localString).toISOString();
+  };
+
+  // Handle input change with numeric validation on some fields
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    const numericFields = [
+      'firstWeight', 'secondWeight', 'netWeight',
+      'bardanaWeight', 'grossWeight', 'freight',
+      'companyId', 'branchId', 'createdBy', 'lastUpdatedBy'
+    ];
+
+    if (numericFields.includes(name)) {
+      if (value === '' || /^[0-9]*\.?[0-9]*$/.test(value)) {
+        setFormData(prev => ({ ...prev, [name]: value }));
+      }
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
+  };
+
+  // Toggle online/offline entry mode
+  const toggleOnlineMode = (isOnline) => {
+    setOnlineMode(isOnline);
+    setFormData(prev => ({
+      ...prev,
+      onlineEntry: isOnline ? 'Yes' : '',
+      offlineEntry: isOnline ? '' : 'Yes',
+    }));
+  };
+
+  useEffect(() => {
+  axios.get('http://localhost:5000/api/purchases')
+    .then(res => {
+      if (res.data.length > 0) {
+        const maxSlip = res.data.reduce((max, curr) => {
+          const slip = parseInt(curr.slip_no, 10);
+          return slip > max ? slip : max;
+        }, 0);
+        const nextSlip = (maxSlip + 1).toString();
+        setFormData(prev => ({ ...prev, slipNo: nextSlip }));
+      } else {
+        setFormData(prev => ({ ...prev, slipNo: '1' }));
+      }
+    })
+    .catch(err => {
+      console.error('Error fetching purchases:', err);
+    });
+
+
+     
+
+    // Set default timestamps now
+    const now = new Date().toISOString();
+    setFormData(prev => ({
+      ...prev,
+      slipInTime: formatDatetimeLocal(now),
+      creationDate: now,
+      lastUpdatedDate: now,
+      slipDate: now,
+    }));
+
+    toggleOnlineMode(true); // default online mode
+  }, []);
+
+  // Reset form for New or Clear
+  const resetForm = () => {
+    setFormData(initialFormData);
+    toggleOnlineMode(true);
+  };
+
+  // Prepare payload and submit
+  const handleSave = async () => {
+    setLoading(true);
+
+    const payload = {
+      slip_no: formData.slipNo || null,
+      slip_in_time: formatISODate(formData.slipInTime),
+      first_weight: formData.firstWeight ? parseFloat(formData.firstWeight) : null,
+      second_weight: formData.secondWeight ? parseFloat(formData.secondWeight) : null,
+      net_weight: formData.netWeight ? parseFloat(formData.netWeight) : null,
+      bardana_weight: formData.bardanaWeight ? parseFloat(formData.bardanaWeight) : null,
+      gross_weight: formData.grossWeight ? parseFloat(formData.grossWeight) : null,
+      freight: formData.freight ? parseFloat(formData.freight) : null,
+      remarks: formData.remarks || null,
+      driver_name: formData.driverName || null,
+      company_id: formData.companyId ? parseInt(formData.companyId, 10) : null,
+      branch_id: formData.branchId ? parseInt(formData.branchId, 10) : null,
+      online_entry: formData.onlineEntry || null,
+      offline_entry: formData.offlineEntry || null,
+      created_by: formData.createdBy ? parseInt(formData.createdBy, 10) : null,
+      creation_date: formData.creationDate || null,
+      last_updated_by: formData.lastUpdatedBy ? parseInt(formData.lastUpdatedBy, 10) : null,
+      last_updated_date: formData.lastUpdatedDate || null,
+      manual_dc_no: formData.manualDcNo || null,
+      entry_type: formData.entryType || null,
+      slip_out_time: formatISODate(formData.slipOutTime),
+      status: formData.status || null,
+      slip_date: formData.slipDate || null,
+    };
+
+    try {
+      const res = await axios.post('http://localhost:5000/api/purchases', payload);
+      alert('Purchase saved successfully!');
+      console.log('Saved:', res.data);
+      resetForm();
+    } catch (err) {
+      alert('Failed to save purchase.');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const handleSaveItems = async () => {
+  setLoading(true);
+
+  const payload = {
+    wb_item_p_id: formData.wbItemPId ? parseInt(formData.wbItemPId, 10) : null,
+    wb_id: formData.wbId ? parseInt(formData.wbId, 10) : null,
+    manual_dc_no: formData.manualDcNo || null,
+    do_id: formData.doId ? parseInt(formData.doId, 10) : null,
+    do_no: formData.doNo || null,
+    customer_id: formData.customerId ? parseInt(formData.customerId, 10) : null,
+    customer_name: formData.customerName || null,
+    vehicle_no: formData.vehicleNo || null,
+    do_date: formData.doDate || null,  // Format date as needed
+    item_id: formData.itemId ? parseInt(formData.itemId, 10) : null,
+    item_code: formData.itemCode || null,
+    item_desc: formData.itemDesc || null,
+    created_by: formData.createdBy ? parseInt(formData.createdBy, 10) : null,
+    creation_date: formData.creationDate || null,
+    last_updated_by: formData.lastUpdatedBy ? parseInt(formData.lastUpdatedBy, 10) : null,
+    last_updated_date: formData.lastUpdatedDate || null,
+    po_id: formData.poId ? parseInt(formData.poId, 10) : null,
+    po_no: formData.poNo || null,
+    po_qty: formData.poQty ? parseFloat(formData.poQty) : null,
+    igp_qty: formData.igpQty ? parseFloat(formData.igpQty) : null,
+    balance_qty: formData.balanceQty ? parseFloat(formData.balanceQty) : null,
+    baradana_type: formData.baradanaType || null,
+    igp_no: formData.igpNo || null,
+    manual_igp_no: formData.manualIgpNo || null,
+    igp_id: formData.igpId ? parseInt(formData.igpId, 10) : null,
+    vendor_id: formData.vendorId ? parseInt(formData.vendorId, 10) : null,
+    vendor_name: formData.vendorName || null,
+    no_of_bags: formData.noOfBags ? parseFloat(formData.noOfBags) : null,
+    weight_per_bags: formData.weightPerBags ? parseFloat(formData.weightPerBags) : null,
+    bardana_weight: formData.bardanaWeight ? parseFloat(formData.bardanaWeight) : null,
+    igp_date: formData.igpDate || null,  // Format date as needed
+    quality_deduction: formData.qualityDeduction ? parseFloat(formData.qualityDeduction) : null,
+    supplier_weight: formData.supplierWeight ? parseFloat(formData.supplierWeight) : null,
+    sup_weight_wthout_bardana: formData.supWeightWithoutBardana ? parseFloat(formData.supWeightWithoutBardana) : null,
+    net_supplier_weight: formData.netSupplierWeight ? parseFloat(formData.netSupplierWeight) : null,
+    bag_condition: formData.bagCondition || null,
+    bardana_type_id: formData.bardanaTypeId ? parseInt(formData.bardanaTypeId, 10) : null,
+  };
+
+  try {
+    const res = await axios.post('http://localhost:5000/api/purchase-items', payload);
+    alert('Purchase item saved successfully!');
+    console.log('Saved item:', res.data);
+    resetForm();  // agar aapke paas form reset karne ka function hai
+  } catch (err) {
+    alert('Failed to save purchase item.');
+    console.error(err);
+  } finally {
+    setLoading(false);
+  }
+};
+
+
+  return (
+    <div className="container-fluid p-0" style={{ backgroundColor: '#d7e9f7' }}>
+      {/* Top Bar Buttons */}
+      <div className="d-flex flex-wrap justify-content-between align-items-center bg-light border rounded p-2 mb-2">
+        <div className="d-flex gap-2 flex-wrap">
+          <button className="btn btn-outline-secondary">Purc</button>
+          <button className="btn btn-outline-secondary">Sale</button>
+          <button className="btn btn-outline-secondary">Edit</button>
+          <button className="btn btn-outline-secondary">|&lt; First</button>
+          <button className="btn btn-outline-secondary">&lt; Prev</button>
+          <button className="btn btn-outline-secondary">Next &gt;</button>
+          <button className="btn btn-outline-secondary">Last &gt;|</button>
+          <button className="btn btn-success me-2" onClick={handleSave}>Save</button>
+          <button className="btn btn-outline-secondary">Print</button>
+          <button className="btn btn-outline-secondary">Rej</button>
+        </div>
+       <div className="d-flex gap-2">
+    <button className="btn btn-dark">ONLINE</button>
+    <button className="btn btn-dark">OFFLINE</button>
+  </div>
+
+  {/* Right side number */}
+  <div className="display-6 text-success fw-bold">
+    2500
+  </div>
+  </div>
+      {/* Main Form Section */}
+      <div className="bg-white p-2 rounded border mb-2">
+        <div className="row mb-2">
+        <div className="col-md-2">
+      <label>Slip No</label>
+      <input className="form-control mb-4" name="slipNo" value={formData.slipNo} readOnly /> {/* mb-4 for more space */}
+
+      <label className="mt-4">Net Weight</label>
+      <input className="form-control bg-warning mb-2" name="netWeight" value={formData.netWeight} onChange={handleChange} />
+
+      <label className="mt-2">Freight</label>
+      <input className="form-control" name="freight" value={formData.freight} onChange={handleChange} />
+      
+ <textarea
+  className="form-control mt-4 mb-3"
+  placeholder="Add remarks"
+  name="remarks"
+  value={formData.remarks}
+  onChange={handleChange}
+  style={{ height: '50px', width: '558px' }}
+/>
+
+    </div>
+          <div className="col-md-2">
+            <label>First Weight</label>
+              <input className="form-control" name="firstWeight" value={formData.firstWeight} onChange={handleChange} />
+               <label>Second Weight</label>
+              <input className="form-control text-success" name="secondWeight" value={formData.secondWeight} onChange={handleChange} />
+               <label>Bardana Weight</label>
+              <input className="form-control" name="bardanaWeight" value={formData.bardanaWeight} onChange={handleChange} />
+                <label>Gross Weight</label>
+              <input className="form-control" name="grossWeight" value={formData.grossWeight} readOnly />
+          </div>
+        <div className="col-md-2">
+  <label>Branch</label>
+  <select
+    className="form-select"
+    name="branch"
+    value={formData.branch}
+    onChange={handleChange}
+  >
+    <option value="">Select branch</option>
+    <option value="Branch 1">Branch 1</option>
+    <option value="Branch 2">Branch 2</option>
+  </select>
+
+  <label>Driver Name</label>
+  <input
+    className="form-control"
+    placeholder="Enter driver name"
+    name="driverName"
+    value={formData.driverName}
+    onChange={handleChange}
+  />
+
+  <label>Date & Time</label>
+  <input className="form-control" value="30-04-25 09:10:30 AM" readOnly />
+
+  {/* Buttons container */}
+  <div className="mt-3">
+    {/* Row 1 buttons */}
+    <div className="d-flex gap-2 mb-2">
+      <button className="btn btn-success w-50">1st WHT</button>
+      <button className="btn btn-secondary w-50">2nd WHT</button>
+    </div>
+
+    {/* Row 2 buttons */}
+    <div className="d-flex gap-2">
+      <button className="btn btn-warning w-50">Clear</button>
+      <button className="btn btn-danger w-50">Exit</button>
+    </div>
+  </div>
+</div>
+
+
+</div>
+      
+
+      </div>
+     {/* Tabs Section */}
+<Tabs defaultActiveKey="purchase" className="mb-2">
+  <Tab eventKey="purchase" title="Purchase">
+    <div className="row mb-2">
+      {/* Column 1 */}
+      <div className="col-md-2">
+        <label>Bardana Type</label>
+        <input className="form-control" name="bardanaType" value={formData.bardanaType} onChange={handleChange} />
+        <label>Wt Per Bag</label>
+        <input className="form-control" name="wtPerBag" value={formData.wtPerBag} onChange={handleChange} />
+        <label>No Of Bags</label>
+        <input className="form-control" name="noOfBags" value={formData.noOfBags} onChange={handleChange} />
+        <label>Bardana Wht</label>
+        <input className="form-control" name="bardanaWeight" value={formData.bardanaWeight} onChange={handleChange} />
+        <label>Quality Ded</label>
+        <input className="form-control" name="qualityDed" value={formData.qualityDed} onChange={handleChange} />
+      </div>
+
+      {/* Column 2 */}
+      <div className="col-md-2">
+      <label>IGP No</label>
+<input
+  className="form-control"
+  name="igpNo"
+  value={formData.igpNo}
+  onChange={handleChange}
+  onKeyDown={(e) => {
+    if (e.key === 'Enter') {
+      fetchIgpData();
+    }
+  }}
+/>
+
+
+        <label>IGP Date</label>
+        <input className="form-control" name="igpDate" value={formData.igpDate} onChange={handleChange} />
+       <label>Vendor</label>
+<input
+  className="form-control"
+  name="vendor"
+  value={formData.vendor}
+  onChange={handleChange}
+/>
+
+        <label>Vehicle No</label>
+        <input className="form-control" name="vehicleNo" value={formData.vehicleNo} onChange={handleChange} />
+
+        {/* Last two fields side by side */}
+        <div className="row">
+          <div className="col-8">
+            <label>Weight</label>
+            <input className="form-control" name="weight" value={formData.weight} onChange={handleChange} />
+          </div>
+          <div className="col-4">
+            <label>% Bags</label>
+            <input className="form-control" name="bags" value={formData.bags} onChange={handleChange} />
+          </div>
+        </div>
+      </div>
+
+      {/* ✅ Column 3 */}
+      <div className="col-md-2">
+        <label>Supp's Weight</label>
+              <input className="form-control" name="superweight" value={formData.superweight} onChange={handleChange} />
+        <label>Sup.Wt - Bardana</label>
+              <input className="form-control" name="supWtBardana" value={formData.supWtBardana} onChange={handleChange} />
+
+        <label>S.Wts - Our Wt</label>
+              <input className="form-control" name="swtsOurWt" value={formData.swtsOurWt} onChange={handleChange} />
+<div className="col-md-6 mt-4">
+  <button className="btn btn-warning w-100">Deduction +</button>
+</div>
+
+      </div>
+    </div>
+         </Tab>
+        <Tab eventKey="sale" title="Sale">
+          <div className="text-center p-3">Sale tab content here</div>
+        </Tab>
+        <Tab eventKey="offline" title="Offline">
+          <div className="text-center p-3">Offline tab content here</div>
+        </Tab>
+      </Tabs>
+
+      {/* Data Table */}
+      <div className="table-responsive border rounded">
+       <table className="table table-bordered mb-0 text-center">
+  <thead className="table-light">
+    <tr>
+      <th>Po No</th>
+      <th>Item Code</th>
+      <th>Item Description</th>
+      <th>Po Qty</th>
+      <th>IgP Qty</th>
+      <th>Balance Qty</th>
+    </tr>
+  </thead>
+  <tbody>
+  {igpItems.length === 0 ? (
+    <tr>
+      <td colSpan="6">No data available</td>
+    </tr>
+  ) : (
+    igpItems.map((item, idx) => {
+      const qty = parseFloat(item.qty) || 0;
+      const receivedQty = parseFloat(item.received_qty) || 0;
+      const balanceQty =receivedQty - qty ;
+
+      return (
+        <tr key={idx}>
+          <td>{item.po_no || ''}</td>
+          <td>{item.item_code || ''}</td>
+          <td>{item.item_desc || ''}</td>
+          <td>{qty}</td>
+          <td>{receivedQty}</td>
+          <td>{balanceQty}</td> {/* Balance Qty calculated */}
+        </tr>
+      );
+    })
+  )}
+</tbody>
+
+</table>
+
+      </div>
+    </div>
+  );
+};
+
+export default Purchaseonline;

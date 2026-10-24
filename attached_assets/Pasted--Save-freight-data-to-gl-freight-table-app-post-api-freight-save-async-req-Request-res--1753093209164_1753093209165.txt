@@ -1,0 +1,323 @@
+ // Save freight data to gl_freight table
+  app.post("/api/freight/save", async (req: Request, res: Response) => {
+    try {
+      const { masterData, slipData } = req.body;
+
+      if (!masterData) {
+        return res.status(400).json({ error: "Master data is required" });
+      }
+
+      // Insert master data into gl_freight table
+      const freightQuery = `
+        INSERT INTO gl_freight (
+          doc_no, doc_date, remarks, company_id, branch_id,
+          freight_type, status, created_by, creation_date
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        RETURNING freight_id
+      `;
+
+      const freightValues = [
+        masterData.docNo,
+        masterData.docDate,
+        masterData.remarks,
+        1, // company_id - default to 1
+        masterData.branch === "Shahzor" ? "2" : "1", // branch_id
+        masterData.voucherType,
+        "Create",
+        masterData.createdBy,
+        masterData.creationDate,
+      ];
+
+      const freightResult = await pool.query(freightQuery, freightValues);
+      const freightId = freightResult.rows[0].freight_id;
+
+      console.log(`Freight master data saved with ID: ${freightId}`);
+
+      // Save slip data to gl_freight_items table
+      if (slipData && Array.isArray(slipData) && slipData.length > 0) {
+        console.log(`Processing ${slipData.length} slip records`);
+
+        for (const slip of slipData) {
+          const itemQuery = `
+            INSERT INTO gl_freight_items (
+              freight_id, vendor_id, item_id, freight_amount, 
+              vehicale_no, delivery_terms, wb_id, remarks,
+              company_id, branch_id, created_by, creation_date
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+          `;
+
+          const itemValues = [
+            freightId,
+            slip.vendor_id || null,
+            slip.item_id || null,
+            slip.freight_amount ? parseFloat(slip.freight_amount) : null,
+            slip.vehicle_no || null,
+            slip.delivery_term || null,
+            slip.wb_id || null,
+            slip.item_desc || null,
+            1, // company_id
+            masterData.branch === "Shahzor" ? "2" : "1", // branch_id
+            masterData.createdBy,
+            masterData.creationDate,
+          ];
+
+          await pool.query(itemQuery, itemValues);
+          console.log(`Saved freight item for slip: ${slip.slip_no}`);
+        }
+      }
+
+      res.json({
+        success: true,
+        freight_id: freightId,
+        message: "Freight data saved successfully",
+      });
+    } catch (error: any) {
+      console.error("Error saving freight data:", error);
+      res.status(500).json({
+        error: "Failed to save freight data",
+        details: error.message,
+      });
+    }
+  });
+
+  // Get all freight vouchers for display in freight voucher form
+  app.get("/api/freight-vouchers", async (req: Request, res: Response) => {
+    try {
+      const query = `
+        SELECT 
+          freight_id,
+          doc_no,
+          doc_date,
+          remarks,
+          branch_id,
+          freight_type,
+          status,
+          creation_date,
+          created_by
+        FROM gl_freight 
+        ORDER BY freight_id DESC
+      `;
+
+      const result = await pool.query(query);
+
+      console.log(`Fetched ${result.rows.length} freight vouchers`);
+      res.json(result.rows);
+    } catch (error: any) {
+      console.error("Error fetching freight vouchers:", error);
+      res.status(500).json({ error: "Failed to fetch freight vouchers" });
+    }
+  });
+
+  // Get freight voucher details by freight_id
+  app.get(
+    "/api/freight-vouchers/:freightId/details",
+    async (req: Request, res: Response) => {
+      try {
+        const { freightId } = req.params;
+
+        const query = `
+        SELECT 
+          freight_id,
+          doc_no,
+          doc_date,
+          remarks,
+          branch_id,
+          freight_type,
+          status,
+          creation_date,
+          created_by,
+          company_id,
+          dept_id,
+          voucher_id,
+          wb_doc_no
+        FROM gl_freight 
+        WHERE freight_id = $1
+      `;
+
+        const result = await pool.query(query, [parseInt(freightId)]);
+
+        if (result.rows.length === 0) {
+          return res.status(404).json({ message: "Freight voucher not found" });
+        }
+
+        console.log(`Fetched freight voucher details for ID: ${freightId}`);
+        res.json(result.rows);
+      } catch (error: any) {
+        console.error("Error fetching freight voucher details:", error);
+        res
+          .status(500)
+          .json({ error: "Failed to fetch freight voucher details" });
+      }
+    },
+  );
+
+  // Get freight items by freight_id for details table (alternative endpoint)
+  app.get("/api/freight-items", async (req: Request, res: Response) => {
+    try {
+      const { freightId } = req.query;
+
+      if (!freightId) {
+        return res.status(400).json({ error: "freightId is required" });
+      }
+
+      const query = `
+        SELECT 
+          gfi.freight_item_id,
+          gfi.freight_id,
+          gfi.vendor_id,
+          gfi.item_id,
+          gfi.freight_amount,
+          gfi.vehicale_no,
+          gfi.delivery_terms,
+          gfi.wb_id,
+          gfi.remarks as item_desc,
+          gfi.debit,
+          gfi.credit,
+          COALESCE(iv.vendor_name, 'Unknown Vendor') as vendor_name,
+          COALESCE(ii.item_code, 'Unknown Code') as item_code,
+          COALESCE(ii.item_desc, gfi.remarks, 'Unknown Item') as full_item_desc
+        FROM gl_freight_items gfi
+        LEFT JOIN inv_vendors iv ON gfi.vendor_id = iv.vendor_id
+        LEFT JOIN inv_items ii ON gfi.item_id = ii.item_id
+        WHERE gfi.freight_id = $1
+        ORDER BY gfi.freight_item_id
+      `;
+
+      const result = await pool.query(query, [parseInt(freightId as string)]);
+
+      console.log(
+        `Fetched ${result.rows.length} freight items for freight ID: ${freightId}`,
+      );
+      res.json(result.rows);
+    } catch (error: any) {
+      console.error("Error fetching freight items:", error);
+      res.status(500).json({ error: "Failed to fetch freight items" });
+    }
+  });
+
+  // Debug endpoint to check all freight items
+  app.get("/api/debug/freight-items", async (req: Request, res: Response) => {
+    try {
+      const allItemsQuery = `
+        SELECT 
+          gfi.freight_item_id,
+          gfi.freight_id,
+          gfi.vendor_id,
+          gfi.item_id,
+          gfi.freight_amount,
+          gfi.vehicale_no,
+          gfi.remarks as item_desc,
+          gf.doc_no,
+          gf.doc_date
+        FROM gl_freight_items gfi
+        LEFT JOIN gl_freight gf ON gfi.freight_id = gf.freight_id
+        ORDER BY gfi.freight_id DESC, gfi.freight_item_id
+      `;
+
+      const result = await pool.query(allItemsQuery);
+
+      console.log(`Debug: Found ${result.rows.length} total freight items in database`);
+      
+      res.json({
+        totalItems: result.rows.length,
+        items: result.rows,
+        groupedByFreightId: result.rows.reduce((acc, item) => {
+          if (!acc[item.freight_id]) {
+            acc[item.freight_id] = [];
+          }
+          acc[item.freight_id].push(item);
+          return acc;
+        }, {})
+      });
+    } catch (error: any) {
+      console.error("Error in debug freight items:", error);
+      res.status(500).json({ error: "Failed to fetch debug freight items" });
+    }
+  });
+
+  // Get freight items by freight_id for details table
+  app.get(
+    "/api/freight-vouchers/:freightId/items",
+    async (req: Request, res: Response) => {
+      try {
+        const { freightId } = req.params;
+        
+        console.log(`🔍 API Hit: Fetching freight items for freight ID: ${freightId}`);
+
+        // First check if freight record exists
+        const freightCheck = await pool.query(
+          "SELECT freight_id, doc_no FROM gl_freight WHERE freight_id = $1", 
+          [parseInt(freightId)]
+        );
+        
+        if (freightCheck.rows.length === 0) {
+          console.log(`❌ No freight master record found for ID: ${freightId}`);
+          return res.json([]); // Return empty array instead of error
+        }
+
+        console.log(`✅ Freight master record found: ${freightCheck.rows[0].doc_no}`);
+
+        const query = `
+          SELECT 
+            gfi.freight_item_id,
+            gfi.freight_id,
+            gfi.vendor_id,
+            gfi.customer_id,
+            gfi.igp_id,
+            gfi.ogp_id,
+            gfi.item_id,
+            gfi.freight_amount,
+            gfi.debit,
+            gfi.credit,
+            gfi.remarks as item_desc,
+            gfi.company_id,
+            gfi.branch_id,
+            gfi.dept_id,
+            gfi.last_update_by,
+            gfi.last_update_date,
+            gfi.freight_charged_to,
+            gfi.actual_frt_amount,
+            gfi.creation_date,
+            gfi.created_by,
+            gfi.voucher_id,
+            gfi.vehicale_no,
+            gfi.delivery_terms,
+            gfi.wb_id,
+            COALESCE(iv.vendor_name, 'Unknown Vendor') as vendor_name,
+            COALESCE(ii.item_code, 'Unknown Code') as item_code,
+            COALESCE(ii.item_desc, gfi.remarks, 'Unknown Item') as full_item_desc
+          FROM gl_freight_items gfi
+          LEFT JOIN inv_vendors iv ON gfi.vendor_id = iv.vendor_id
+          LEFT JOIN inv_items ii ON gfi.item_id = ii.item_id
+          WHERE gfi.freight_id = $1
+          ORDER BY gfi.freight_item_id
+        `;
+
+        const result = await pool.query(query, [parseInt(freightId)]);
+
+        console.log(`📊 Query executed. Found ${result.rows.length} freight items for freight ID: ${freightId}`);
+        
+        if (result.rows.length > 0) {
+          console.log("✅ Sample freight item data:", JSON.stringify(result.rows[0], null, 2));
+          result.rows.forEach((item, index) => {
+            console.log(`📋 Item ${index + 1}: ID=${item.freight_item_id}, Vendor=${item.vendor_name}, Amount=${item.freight_amount}`);
+          });
+        } else {
+          console.log(`⚠️ No freight items found for freight ID: ${freightId}`);
+          
+          // Debug: Check what freight items exist
+          const allItems = await pool.query("SELECT freight_id, freight_item_id, vendor_id, freight_amount FROM gl_freight_items ORDER BY freight_id DESC LIMIT 20");
+          console.log("📊 Recent freight items in database:", allItems.rows);
+        }
+        
+        // Always return an array, even if empty
+        res.json(result.rows || []);
+      } catch (error: any) {
+        console.error("❌ Error fetching freight items:", error);
+        console.error("❌ Error details:", error.message);
+        res.json([]); // Return empty array on error instead of error response
+      }
+    },
+  );

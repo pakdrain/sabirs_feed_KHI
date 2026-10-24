@@ -1,0 +1,117 @@
+
+❌ Error inserting record 44: there is no unique or exclusion constraint matching the ON CONFLICT specification
+Failed item: {
+  "data_config_id": 52,
+  "sys_config_id": 15,
+  "data_config_desc": "NO BARDANA",
+  "data_config_segment1": "0"
+}
+Error details: error: there is no unique or exclusion constraint matching the ON CONFLICT specification
+    at C:\Users\Wajid Ali\Desktop\CameraStreamMonitor\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async <anonymous> (C:\Users\Wajid Ali\Desktop\CameraStreamMonitor\server\routes.ts:3601:28) {
+  length: 148,
+  severity: 'ERROR',
+  code: '42P10',
+  detail: undefined,
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'plancat.c',
+  line: '945',
+  routine: 'infer_arbiter_indexes'
+}
+❌ Fallback insert also failed for record 44: there is no unique or exclusion constraint matching the ON CONFLICT specification
+Processing record 45: {
+  dataConfigId: 53,
+  sysConfigId: 15,
+  dataConfigDesc: 'DRUM',
+  dataConfigSegment1: '0',
+  originalItem: {
+    data_config_id: 53,
+    sys_config_id: 15,
+    data_config_desc: 'DRUM',
+    data_config_segment1: '0'
+  }
+}
+❌ Error inserting record 45: there is no unique or exclusion constraint matching the ON CONFLICT specification
+Failed item: {
+  "data_config_id": 53,
+  "sys_config_id": 15,
+  "data_config_desc": "DRUM",
+  "data_config_segment1": "0"
+}
+Error details: error: there is no unique or exclusion constraint matching the ON CONFLICT specification
+    at C:\Users\Wajid Ali\Desktop\CameraStreamMonitor\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async <anonymous> (C:\Users\Wajid Ali\Desktop\CameraStreamMonitor\server\routes.ts:3601:28) {
+  length: 148,
+  severity: 'ERROR',
+  code: '42P10',
+  detail: undefined,
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'plancat.c',
+  line: '945',
+  routine: 'infer_arbiter_indexes'
+}
+❌ Fallback insert also failed for record 45: there is no unique or exclusion constraint matching the ON CONFLICT specification
+Processing record 46: {
+  dataConfigId: 4322,
+  sysConfigId: 15,
+  dataConfigDesc: 'PP BAGS 90 GRAM',
+  dataConfigSegment1: '0.09',
+  originalItem: {
+    data_config_id: 4322,
+    sys_config_id: 15,
+    data_config_desc: 'PP BAGS 90 GRAM',
+    data_config_segment1: '0.09'
+  }
+}
+❌ Error inserting record 46: there is no unique or exclusion constraint matching the ON CONFLICT specification
+Failed item: {
+  "data_config_id": 4322,
+  "sys_config_id": 15,
+  "data_config_desc": "PP BAGS 90 GRAM",
+  "data_config_segment1": "0.09"
+}
+Error details: error: there is no unique or exclusion constraint matching the ON CONFLICT specification
+    at C:\Users\Wajid Ali\Desktop\CameraStreamMonitor\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async <anonymous> (C:\Users\Wajid Ali\Desktop\CameraStreamMonitor\server\routes.ts:3601:28) {
+  length: 148,
+  severity: 'ERROR',
+  code: '42P10',
+  detail: undefined,
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'plancat.c',
+  line: '945',
+  routine: 'infer_arbiter_indexes'
+}
+❌ Fallback insert also failed for record 46: there is no unique or exclusion constraint matching the ON CONFLICT specification
+✅ Successfully inserted 0 records into sys_data_configg table
+12:54:20 AM [express] POST /api/fetch-and-save-sys-config 200 in 7910ms :: {"success":true,"message":…
